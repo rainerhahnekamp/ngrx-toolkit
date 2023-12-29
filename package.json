@@ -4,6 +4,7 @@
   "license": "MIT",
   "scripts": {
     "start": "npx nx serve demo",
+    "test:dev": "npx nx test --watch ngrx-toolkit",
     "verify": "npx nx run-many --targets=lint,test,build"
   },
   "private": true,

@@ -1,4 +1,6 @@
-export { withDevtools, patchState, Action } from './lib/with-devtools';
+export { withDevtools } from './lib/devtools/with-devtools';
+export { patchState } from './lib/devtools/patch-state';
+
 export * from './lib/with-redux';
 export * from './lib/with-call-state';
 export * from './lib/with-undo-redo';
