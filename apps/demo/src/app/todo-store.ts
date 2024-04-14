@@ -5,7 +5,7 @@ import {
   updateEntity,
   withEntities,
 } from '@ngrx/signals/entities';
-import { patchState, withDevtools } from 'ngrx-toolkit';
+import { tkPatchState, withDevtools } from 'ngrx-toolkit';
 
 export interface Todo {
   id: number;
@@ -24,19 +24,23 @@ export const TodoStore = signalStore(
     let currentId = 0;
     return {
       add(todo: AddTodo) {
-        patchState(store, 'add todo', setEntity({ id: ++currentId, ...todo }));
+        tkPatchState(
+          store,
+          'add todo',
+          setEntity({ id: ++currentId, ...todo }),
+        );
       },
 
       remove(id: number) {
-        patchState(store, 'remove todo', removeEntity(id));
+        tkPatchState(store, 'remove todo', removeEntity(id));
       },
 
       toggleFinished(id: number): void {
         const todo = store.entityMap()[id];
-        patchState(
+        tkPatchState(
           store,
           'toggle todo',
-          updateEntity({ id, changes: { finished: !todo.finished } })
+          updateEntity({ id, changes: { finished: !todo.finished } }),
         );
       },
     };
@@ -47,5 +51,5 @@ export const TodoStore = signalStore(
       store.add({ name: 'Sleep 8 hours once', finished: false });
       store.add({ name: 'Clean the room', finished: true });
     },
-  })
+  }),
 );

@@ -4,7 +4,7 @@ import {
   payload,
   withDevtools,
   withRedux,
-  patchState,
+  tkPatchState,
 } from 'ngrx-toolkit';
 import { inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -28,7 +28,7 @@ export const FlightStore = signalStore(
 
     reducer: (actions, on) => {
       on(actions.flightsLoaded, ({ flights }, state) => {
-        patchState(state, 'flights loaded', { flights });
+        tkPatchState(state, 'flights loaded', { flights });
       });
     },
 
@@ -42,12 +42,12 @@ export const FlightStore = signalStore(
               'https://demo.angulararchitects.io/api/flight',
               {
                 params: new HttpParams().set('from', from).set('to', to),
-              }
+              },
             );
           }),
-          map((flights) => actions.flightsLoaded({ flights }))
+          map((flights) => actions.flightsLoaded({ flights })),
         ),
       };
     },
-  })
+  }),
 );

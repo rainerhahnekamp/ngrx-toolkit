@@ -1,5 +1,5 @@
 export { withDevtools } from './lib/devtools/with-devtools';
-export { patchState } from './lib/devtools/patch-state';
+export { tkPatchState } from './lib/devtools/tk-patch-state';
 
 export * from './lib/with-redux';
 export * from './lib/with-call-state';

@@ -17,7 +17,7 @@ npm i @angular-architects/ngrx-toolkit
 
 ## Devtools: `withDevtools()`
 
-This extension is very easy to use. Just add it to a `signalStore`. Example:
+`withDevtools` synchronizes a store to the Redux Devtools.
 
 ```typescript
 export const FlightStore = signalStore(
@@ -27,6 +27,131 @@ export const FlightStore = signalStore(
   // ...
 );
 ```
+
+Each store acts as a "feature state". In the example above, `FlightStore` is synchronized to the root store's `flights` property.
+
+---
+
+Every `patchState` triggers a new synchronization. Since the Signal Store doesn't support the concept of actions, the name is always "Store Update".
+
+`tkPatchState` calls internally `patchState` but allows you to setup pass an action name as well.
+
+```typescript
+
+```
+
+---
+
+If both global (@ngrx/store) and Signal Store are running, the Signal Store is available in the Redux Devtools under the tab "NgRx Signal Store".
+
+---
+
+When a store gets destroyed, it is also removed from DevTools.
+
+---
+
+If the same store exists multiple times, for example multiple components provide it, the name is automatically indexed:
+
+```typescript
+import { withDevtools } from './with-devtools';
+import { Component } from '@angular/core';
+import { FlightStore } from './flight-store';
+
+const FlightStore = signalStore(withDevtools('flights'))
+
+@Component({
+  template: ``,
+  standalone: true,
+  providers: [FlightStore]
+})
+export class FlightSearch {
+}
+
+@Component({
+  template: ``,
+  standalone: true,
+  providers: [FlightStore]
+})
+export class FlightAdmin {
+}
+```
+
+Only if, both components are shown at the same time, the first instantiated component would have its store name as "flights", the second "flights-1".
+
+Because that might be confusing, a component or service can rename the store upon instantiation. That is also the recommendation:
+
+```typescript
+import { withDevtools } from './with-devtools';
+import { Component } from '@angular/core';
+import { FlightStore } from './flight-store';
+
+const FlightStore = signalStore(withDevtools('flights'));
+
+@Component({
+  template: ``,
+  standalone: true,
+  providers: [FlightStore]
+})
+export class FlightSearch {
+  constructor(flightStore: FlightStore) {
+    flightStore.renameDevtoolsName('[FlightSearch] flights')
+  }
+}
+
+@Component({
+  template: ``,
+  standalone: true,
+  providers: [FlightStore]
+})
+export class FlightAdmin {
+  constructor(flightStore: FlightStore) {
+    flightStore.renameDevtoolsName('[FlightAdmin] flights')
+  }
+}
+```
+
+It is possible to disable the automatic indexing via `withDevtools('flights', {indexNames: false})`. In that case a second simultaneous instance would already throw:
+
+```typescript
+import { withDevtools } from './with-devtools';
+import { Component } from '@angular/core';
+import { FlightStore } from './flight-store';
+
+const FlightStore = signalStore(withDevtools('flights'))
+
+@Component({
+  template: ``,
+  standalone: true,
+  providers: [FlightStore]
+})
+export class FlightSearch {
+}
+
+// will throw if these components are shown at the same time
+@Component({
+  template: ``,
+  standalone: true,
+  providers: [FlightStore]
+})
+export class FlightAdmin {
+}
+```
+
+If two different signalStores with the same name exist, `withDevtools` throws a runtime error immediately. That is before the store is even instantiated:
+
+```typescript
+import { withDevtools } from './with-devtools';
+import { signalStore } from '@ngrx/signals';
+
+const LufthansaStore = signalStore(withDevtools('flights'));
+const BritishAirwaysStore = signalStore(withDevtools('flights')) // will throw
+```
+
+---
+
+If `FlightStore` is instantiated three times, the DevTools would show the following feature states: `flights`, `flights-1`, `flights-2`.
+
+`withDevtools` adds the method `renameDevtools` which would rename the feature state. Renaming is only possible during the instantiation, i.e. constructor. If the name already exists, the store throws a runtime error.
 
 ## Redux: `withRedux()`
 
@@ -86,7 +211,7 @@ export const SimpleFlightBookingStore = signalStore(
   withCallState(),
   withEntities<Flight>(),
   withDataService({
-    dataServiceType: FlightService, 
+    dataServiceType: FlightService,
     filter: { from: 'Paris', to: 'New York' },
   }),
   withUndoRedo(),
@@ -102,13 +227,23 @@ The Data Service needs to implement the ``DataService`` interface:
   providedIn: 'root'
 })
 export class FlightService implements DataService<Flight, FlightFilter> {
-  loadById(id: EntityId): Promise<Flight> { ... }
-  load(filter: FlightFilter): Promise<Flight[]> { ... }
+  loadById(id: EntityId): Promise<Flight> { ...
+  }
 
-  create(entity: Flight): Promise<Flight> { ... }
-  update(entity: Flight): Promise<Flight> { ... }
-  delete(entity: Flight): Promise<void> { ... }
-  [...]
+  load(filter: FlightFilter): Promise<Flight[]> { ...
+  }
+
+  create(entity: Flight): Promise<Flight> { ...
+  }
+
+  update(entity: Flight): Promise<Flight> { ...
+  }
+
+  delete(entity: Flight): Promise<void> { ...
+  }
+
+  [
+...]
 }
 ```
 
@@ -163,12 +298,12 @@ export const FlightBookingStore = signalStore(
   withCallState({
     collection: 'flight'
   }),
-  withEntities({ 
-    entity: type<Flight>(), 
+  withEntities({
+    entity: type<Flight>(),
     collection: 'flight'
   }),
   withDataService({
-    dataServiceType: FlightService, 
+    dataServiceType: FlightService,
     filter: { from: 'Graz', to: 'Hamburg' },
     collection: 'flight'
   }),
