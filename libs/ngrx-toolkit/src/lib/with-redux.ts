@@ -3,9 +3,11 @@ import { SignalStoreFeature } from '@ngrx/signals';
 import {
   EmptyFeatureResult,
   SignalStoreFeatureResult,
+  SignalStoreSlices,
 } from '@ngrx/signals/src/signal-store-models';
 import { StateSignal } from '@ngrx/signals/src/state-signal';
 import { assertActionFnSpecs } from './assertions/assertions';
+import { Prettify } from '@ngrx/store/src/models';
 
 /** Actions **/
 
@@ -243,7 +245,6 @@ function processRedux<Spec extends ActionsFnSpecs, ReturnType>(
 }
 
 /**
- * @param redux redux
  *
  * properties do not start with `with` since they are not extension functions on their own.
  *
@@ -251,21 +252,32 @@ function processRedux<Spec extends ActionsFnSpecs, ReturnType>(
  *
  * actions are passed to reducer and effects, but it is also possible to use other actions.
  * effects provide forAction and do not return anything. that is important because effects should stay inaccessible
+ * @param reduxFn
  */
 export function withRedux<
   Spec extends ActionsFnSpecs,
   Input extends SignalStoreFeatureResult,
   StateActionFns extends ActionFnsCreator<Spec> = ActionFnsCreator<Spec>,
   PublicStoreActionFns extends PublicActionFns<Spec> = PublicActionFns<Spec>,
->(redux: {
-  actions: Spec;
-  reducer: ReducerFactory<StateActionFns, StateSignal<Input['state']>>;
-  effects: EffectsFactory<StateActionFns>;
-}): SignalStoreFeature<
+>(
+  reduxFn: (
+    store: Prettify<
+      SignalStoreSlices<Input['state']> &
+        Input['signals'] &
+        Input['methods'] &
+        StateSignal<Prettify<Input['state']>>
+    >,
+  ) => {
+    actions: Spec;
+    reducer: ReducerFactory<StateActionFns, StateSignal<Input['state']>>;
+    effects: EffectsFactory<StateActionFns>;
+  },
+): SignalStoreFeature<
   Input,
   EmptyFeatureResult & { methods: PublicStoreActionFns }
 > {
   return (store) => {
+    const redux = reduxFn(store as any);
     const { methods } = processRedux<Spec, PublicStoreActionFns>(
       redux.actions,
       redux.reducer as ReducerFactory<ActionFns, unknown>,
