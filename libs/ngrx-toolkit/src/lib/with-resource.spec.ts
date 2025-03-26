@@ -7,7 +7,7 @@ import {
 } from '@ngrx/signals';
 import { reloadResource, withResource } from './with-resource';
 
-import { inject, Injectable, resource } from '@angular/core';
+import { inject, Injectable, resource, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { httpResource, provideHttpClient } from '@angular/common/http';
 import {
@@ -222,4 +222,26 @@ describe('withResource', () => {
 
     expect(store.value()).toBe(venice);
   });
+
+  it('should work with named resources', async () => {
+    const Store = signalStore(
+      { providedIn: 'root' },
+      withResource('user', () => {
+        return httpResource(() => `/api/geo`);
+      }),
+      withMethods((store) => ({
+        foo() {
+          store.__resources[RESOURCE];
+        },
+      }))
+    );
+
+    const store = TestBed.inject(Store);
+  });
+
+  it.todo('should not allow reload on missing resource');
+  it.todo('should not allow reload on missing named resource');
+
+  it.todo('should not compile if resource already exists');
+  it.todo('should not compile if same named resource already exists');
 });

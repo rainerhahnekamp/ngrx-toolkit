@@ -1,7 +1,9 @@
 import {
   EmptyFeatureResult,
+  signalStore,
   SignalStoreFeature,
   StateSignals,
+  withMethods,
 } from '@ngrx/signals';
 import { SignalStoreFeatureResult } from '@ngrx/signals/src/signal-store-models';
 import {
@@ -11,6 +13,7 @@ import {
   Signal,
   untracked,
 } from '@angular/core';
+import { httpResource } from '@angular/common/http';
 
 type StoreForResource<Input extends SignalStoreFeatureResult> = StateSignals<
   Input['state']
@@ -39,10 +42,10 @@ type NamedResourceFeature<
   ResourceValue
 > = EmptyFeatureResult & {
   props: {
-    [Key in Name]: ResourceRef<ResourceValue>;
+    [Key in Name]: Resource<ResourceValue>;
   } & {
     __resources: {
-      [RESOURCE]: Record<string, ResourceRef<ResourceValue>>;
+      [RESOURCE]: Record<Name, ResourceRef<ResourceValue>>;
     };
   };
 };
@@ -227,8 +230,9 @@ function createNamedResourceFeature<
     };
 
     const resource = resourceFactory(storeForResourceFactory);
-    const existingResources =
-      '__resources' in store.props ? store.props['__resources'] : {};
+    const existingResources = hasNamedResources(store.props)
+      ? store.props['__resources']
+      : {};
 
     return {
       ...store,
@@ -244,22 +248,32 @@ function createNamedResourceFeature<
   };
 }
 
+function hasNamedResources(
+  props: object
+): props is { __resources: Record<string, object> } {
+  return '__resources' in props && typeof props['__resources'] === 'object';
+}
+
 const RESOURCE = Symbol('RESOURCE');
 
 type SignalStoreResource<T> = {
   [RESOURCE]: ResourceRef<T>;
 };
 
-type ResourceState<T> = {
+type ResourceStore<T> = {
   __resource: SignalStoreResource<T>;
 };
 
+type NamedResourceStore<Name extends string, Value> = {
+  __resources: { [RESOURCE]: { [Prop in Name as Name]: ResourceRef<Value> } };
+};
+
 /**
- * sets the value of the internal resource.
+ * sets the value of the internal resource.7
  * @param value
  */
 export function setResource<T>(value: T) {
-  return (state: ResourceState<T>) => {
+  return (state: ResourceStore<T>) => {
     const resource = state.__resource[RESOURCE];
     resource.set(value);
     return state;
@@ -270,8 +284,83 @@ export function setResource<T>(value: T) {
  * Triggers the `reload` method on the internal resource.
  * @param store
  */
-export function reloadResource(store: ResourceState<unknown>) {
+export function reloadResource(store: ResourceStore<unknown>): void;
+/**
+ * Triggers the `reload` method on the internal resource.
+ * @param store
+ */
+export function reloadResource<Name extends string, ResourceValue>(
+  store: NamedResourceStore<Name, ResourceValue>,
+  name: Name
+): void;
+
+export function reloadResource<Name extends string, ResourceValue>(
+  store: ResourceStore<ResourceValue> | NamedResourceStore<Name, ResourceValue>,
+  name?: Name
+) {
   untracked(() => {
-    store.__resource[RESOURCE].reload();
+    if (name) {
+      assertNamedRessourceStore(store, name);
+      getNamedResource(store, name).reload();
+    } else {
+      assertResourceStore(store);
+      getResource(store).reload();
+    }
   });
+}
+
+function getResource<ResourceValue>(store: ResourceStore<ResourceValue>) {
+  return store.__resource[RESOURCE];
+}
+
+function getNamedResource<Name extends string, ResourceValue>(
+  store: NamedResourceStore<Name, ResourceValue>,
+  name: Name
+) {
+  const resourceMap = store.__resources[RESOURCE];
+  return resourceMap[name] as ResourceRef<ResourceValue>;
+}
+
+function isResourceStore<T>(store: object): store is ResourceStore<T> {
+  return Boolean(
+    '__resource' in store &&
+      store.__resource &&
+      typeof store.__resource === 'object' &&
+      Reflect.ownKeys(store.__resource).includes(RESOURCE)
+  );
+}
+
+function assertResourceStore<T>(
+  store: object
+): asserts store is ResourceStore<T> {
+  if (!isResourceStore(store)) {
+    throw new Error('resource is missing in SignalStore');
+  }
+}
+
+function isNamedResourceStore<Name extends string, ResourceValue>(
+  store: object,
+  name: Name
+): store is NamedResourceStore<Name, ResourceValue> {
+  if (
+    '__resources' in store &&
+    store.__resources &&
+    typeof store.__resources === 'object'
+  ) {
+    const resources = store.__resources as Record<
+      symbol,
+      ResourceRef<ResourceValue>
+    >;
+    return resources[RESOURCE] && name in resources[RESOURCE];
+  }
+  return false;
+}
+
+function assertNamedRessourceStore<Name extends string, ResourceValue>(
+  store: object,
+  name: Name
+): asserts store is NamedResourceStore<Name, ResourceValue> {
+  if (!isNamedResourceStore(store, name)) {
+    throw new Error(`named resource ${name} is missing in SignalStore`);
+  }
 }
