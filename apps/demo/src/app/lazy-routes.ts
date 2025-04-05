@@ -59,4 +59,8 @@ export const lazyRoutes: Route[] = [
         (m) => m.ConditionalSettingComponent
       ),
   },
+  {
+    path: 'resource',
+    loadComponent: () => import('./resource/resource.ng'),
+  },
 ];

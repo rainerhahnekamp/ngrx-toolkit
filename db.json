@@ -1,0 +1,53 @@
+{
+  "todos": [
+    {
+      "id": "1",
+      "name": "Kuaf eine",
+      "description": "Purchase vegetables, fruits, and other essentials.",
+      "deadline": "2023-10-07",
+      "finished": true
+    },
+    {
+      "id": "2",
+      "name": "Walk the dog",
+      "description": "Take the dog for a 30-minute walk in the park.",
+      "deadline": "2023-10-02",
+      "finished": true
+    },
+    {
+      "id": "3",
+      "name": "Complete project report",
+      "description": "Finalize and submit the quarterly project report.",
+      "deadline": "2023-10-03",
+      "finished": true
+    },
+    {
+      "id": "4",
+      "name": "Call the plumber",
+      "description": "Fix the leaking kitchen sink.",
+      "deadline": "2023-10-04",
+      "finished": true
+    },
+    {
+      "id": "5",
+      "name": "Plan weekend trip",
+      "description": "Organize itinerary and book accommodations.",
+      "deadline": "2023-10-05",
+      "finished": true
+    },
+    {
+      "id": "6",
+      "name": "Read a book",
+      "description": "Finish reading the current novel.",
+      "deadline": "2023-10-06",
+      "finished": false
+    },
+    {
+      "id": "7",
+      "name": "Clean the garage",
+      "description": "Organize tools and clear out unnecessary items.",
+      "deadline": "2023-10-07",
+      "finished": false
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { withResource } from './lib/with-resource';
+
 export { withDevToolsStub } from './lib/devtools/with-dev-tools-stub';
 export { withDevtools } from './lib/devtools/with-devtools';
 export { withDisabledNameIndices } from './lib/devtools/features/with-disabled-name-indicies';
@@ -23,3 +25,4 @@ export { withReset, setResetState } from './lib/with-reset';
 export { withImmutableState } from './lib/immutable-state/with-immutable-state';
 export { withFeatureFactory } from './lib/with-feature-factory';
 export { withConditional, emptyFeature } from './lib/with-conditional';
+export { withResource, setResource, reloadResource } from './lib/with-resource';
