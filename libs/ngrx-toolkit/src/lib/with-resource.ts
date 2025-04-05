@@ -66,44 +66,75 @@ type NamedResourceFeature<
  * for all the upcoming APIs in Angular that require a resource and at
  * the same it is a fully-fledged SignalStore with all its features.
  *
- * The `value` property will be a be of type `DeepSignal` and a computed.
  *
- * There is an option to integrate multiple resources. The approach would
- * be the same we have with `withEntites` via named properties. I suggest
- * that we avoid that in the beginning and only support it, if the
- * community comes up with good reasons.
+ * ## Basic Usage
+ * ```ts
+ * const Store = signalStore(
+ *   withResource(() => httpResource<Product[]>(() => `/product`))
+ * );
  *
- * To the outside, it is always a readonly resource. I would not provide
- * a configuration like `{ protectedResource: false }`.
+ * const store = inject(Store) satisfies Resource<Product[] | undefined>;
+ * ```
+ *
+ * `withResource` has full access to the SignalStore's state, props and methods.
+ * That means you can use those elements as input for the resource.
+ *
+ * ```ts
+ * const Store = signalStore(
+ *  withState({ selectedId: 0 }),
+ *  withResource(store => httpResource<Product[]>(() => `/product/${store.selectedId()}`))
+ * );
+ * ```
+ *
+ * It is also possible to use multiple resources. The approach would
+ * be the same we have with `withEntites` via named properties.
+ *
+ * Regardless if named or non-named resource, the SignalStore always
+ * exposes the resource as a readonly.
+ *
+ * In a sense, `withResource` is not experimental. The resource function is,
+ * but that one is provided by the user. We just use the API.
  *
  * The actual resource is hidden behind a private Symbol. That means it is
  * not accessible even for the features of the SignalStore.
- * Instead, we provide standalone functions for methods of a writable Resource.
+ * Instead, we provide standalone functions to manipulate the resource.
  * That is
- * - reloadResource(store)
- * - patchState(store, setResource(value))
+ * - `reloadResource(store)`
+ * - `patchState(store, setResource(value))`
  *
- * Although resource is not part of the state, patchState should support it.
- *
- * And for `withHttpResource, following functions can be applied additionally:
- * - destroyHttpResource(store)
- *
- * In a sense, it is not experimental, since the experimental resources
- * are coming outside from Angular itself. We just provide the API.
+ * ## Implementation Note
  *
  * The goal is to have an API which is as close as possible to a potential
  * API from "@ngrx/signals". Therefore the implementation is not the most
  * efficient one. Especially the redundant storage of the resource once
  * in the state and once in the props is related to that.
  *
- * We need to have it in the state, because setResource only has access
- * to the state, whereas other parts only have access to the props.
+ * We want to hide the resource from both inside (other SignalStore features)
+ * and the outside (component, services, etc.)
  *
- * TODO: own resource type with more options (Marko's RFC)
- * TODO: named resources
- * TODO: Throw error on name collision
+ * Since we can't change the type of the SignalStore, so that it automatically
+ * hides a RESOURCE symbol (like STATE_SOURCE), we hide the resource in the
+ * state behind __resource which encapsulates it for the consumer.
+ * Additionally, we put the actual resource into the property __resource
+ * into a RESOURCE symbol, so that it is also encapsulated for the features
+ * of the SignalStore.
  *
- * If a resource httpResource or resource already exists, we get a type error.
+ * We need to have access to the real resource in the state as well.
+ * This is because setResource only has access to the state.
+ * `reloadResource` can access it via props.
+ *
+ * ## Potential further improvements
+ *
+ * We could come up with an own `NgRxResource,` which could support features
+ * like enabling, or an RxJS-based `request` property.
+ *
+ * ```typescript
+ * withResource(store => ({
+ *   enabled: store.enabled,
+ *   reqest: interval(1000),
+ *   // ...
+ * })
+ * ```
  */
 export function withResource<Input extends SignalStoreFeatureResult, Value>(
   resourceFactory: (store: StoreForResource<Input>) => ResourceRef<Value>
@@ -114,9 +145,9 @@ export function withResource<Input extends SignalStoreFeatureResult, Value>(
  *
  * The functions `reloadResource` and `setResourceValue` also accept a name.
  *
- * Putting it as a property is to be able to provide multipe `ResourceRef`
- * types. Splitting up the various properties of `ResourceRef` with a named
- * prefix would not allow that.
+ * Setting the resource as property is required to be able to provide
+ * multipe `ResourceRef` types. Splitting up the various properties
+ * of `ResourceRef` with a named prefix would not allow that.
  *
  * Example:
  * ```ts
@@ -132,7 +163,6 @@ export function withResource<Input extends SignalStoreFeatureResult, Value>(
  *
  * const listResource: ResourceRef<Product[]> = store.list;
  * const detailResource: ResourceRef<ProductDetail[]> = store.detail;
- *
  * ```
  * @param name name of the property where the resource is stored
  * @param resourceFactory function generating the actual resource
@@ -151,15 +181,7 @@ export function withResource<
 /**
  * Implementation Note
  *
- * We want to hide the resource from both inside (other SignalStore features)
- * and the outside (component, services, etc.)
- *
- * Since we can't change the type of the SignalStore, that it automatically
- * hides a RESOURCE symbol (like STATE_SOURCE), we hide the resource in the
- * state behind __resource which encapsulates it for the consumer.
- * Additionally, we put the actual resource into the property __resource
- * into a RESOURCE symbol, so that it is also encapsulated for the features
- * of the SignalStore.
+
  */
 export function withResource<
   Input extends SignalStoreFeatureResult,
