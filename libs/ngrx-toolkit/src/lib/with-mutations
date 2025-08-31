@@ -1,0 +1,167 @@
+import {
+  assertInInjectionContext,
+  computed,
+  DestroyRef,
+  inject,
+  Injector,
+  signal,
+  Signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  catchError,
+  EMPTY,
+  mergeMap,
+  Observable,
+  OperatorFunction,
+  Subject,
+  tap,
+} from 'rxjs';
+
+export type RxOperator = <T, R>(
+  fn: (value: T) => Observable<R>,
+) => OperatorFunction<T, R>;
+
+export type RxOperation<T> = {
+  readonly value: Signal<T>;
+  readonly error: Signal<unknown>;
+  readonly isPending: Signal<boolean>;
+  readonly isFulfilled: Signal<boolean>;
+  readonly status: Signal<OperationStatus>;
+  hasValue(): this is RxOperation<Exclude<T, undefined>>;
+};
+
+type RxOperationUtils<T> = RxOperation<T | undefined> & {
+  setValue(value: T): void;
+  setError(error: unknown): void;
+  incrementExecutionCount(): void;
+  decrementExecutionCount(): void;
+};
+
+export function rxOperationUtils<T>(initialValue?: T): RxOperationUtils<T> {
+  const value = signal(initialValue);
+  const error = signal<unknown>(undefined);
+  const executionCount = signal(0);
+  const isPending = computed(() => executionCount() > 0);
+  const isFulfilled = computed(() => !isPending() && !error() && !!value());
+  const status = computed<OperationStatus>(() => {
+    if (isPending()) return 'pending';
+    if (error() !== undefined) return 'error';
+    return isFulfilled() ? 'fulfilled' : 'idle';
+  });
+
+  return {
+    value,
+    error,
+    isPending,
+    isFulfilled,
+    status,
+    hasValue(): this is RxOperation<Exclude<T, undefined>> {
+      return value() !== undefined;
+    },
+    setValue(val) {
+      value.set(val);
+      error.set(undefined);
+    },
+    setError(err) {
+      error.set(err);
+    },
+    incrementExecutionCount(): void {
+      executionCount.update((count) => count + 1);
+    },
+    decrementExecutionCount(): void {
+      executionCount.update((count) => Math.max(0, count - 1));
+    },
+  };
+}
+
+export type OperationStatus = 'idle' | 'pending' | 'fulfilled' | 'error';
+
+export type RxMutation<Input, Value> = RxOperation<Value | undefined> & {
+  execute(input: Input): void;
+};
+
+type MutationExecutor<Input, Value> = (input: Input) => Observable<Value>;
+type MutationConfig<Input, Value> = {
+  executor: MutationExecutor<Input, Value>;
+  operator?: RxOperator;
+  onSuccess?: (config: {
+    input: NoInfer<Input>;
+    value: NoInfer<Value>;
+  }) => void;
+  onError?: (config: { input: NoInfer<Input>; error: unknown }) => void;
+  injector?: Injector;
+};
+
+export function rxMutation<Input, Value>(
+  executor: MutationExecutor<Input, Value>,
+): RxMutation<Input, Value>;
+export function rxMutation<Input, Value>(
+  config: MutationConfig<Input, Value>,
+): RxMutation<Input, Value>;
+export function rxMutation<Input, Value>(
+  configOrExecutor:
+    | MutationConfig<Input, Value>
+    | MutationExecutor<Input, Value>,
+): RxMutation<Input, Value> {
+  const config: MutationConfig<Input, Value> =
+    typeof configOrExecutor === 'function'
+      ? { executor: configOrExecutor }
+      : configOrExecutor;
+
+  if (!config.injector) {
+    assertInInjectionContext(rxMutation);
+  }
+
+  const {
+    setValue,
+    setError,
+    incrementExecutionCount,
+    decrementExecutionCount,
+    ...rxOperation
+  } = rxOperationUtils<Value>();
+
+  const injector = config.injector ?? inject(Injector);
+  const destroyRef = injector.get(DestroyRef);
+
+  const input$ = new Subject<Input>();
+  const operator: RxOperator = config.operator ?? mergeMap;
+
+  input$
+    .pipe(
+      operator((input) => {
+        incrementExecutionCount();
+        let isSuccess = false;
+
+        return config.executor(input).pipe(
+          tap({
+            next: (value) => {
+              setValue(value);
+              decrementExecutionCount();
+              isSuccess = true;
+              config.onSuccess?.({ input, value });
+            },
+            error: (error) => {
+              setError(error);
+              config.onError?.({ input, error });
+            },
+            finalize: () => {
+              if (!isSuccess) {
+                decrementExecutionCount();
+              }
+            },
+          }),
+          catchError(() => EMPTY),
+        );
+      }),
+      takeUntilDestroyed(destroyRef),
+    )
+    .subscribe();
+
+  return {
+    ...rxOperation,
+    execute(input) {
+      input$.next(input);
+    },
+  };
+}

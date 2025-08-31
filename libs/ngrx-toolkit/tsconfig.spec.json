@@ -7,11 +7,5 @@
     "types": ["jest", "node"]
   },
   "files": ["src/test-setup.ts"],
-  "include": [
-    "jest.config.ts",
-    "src/**/*.test.ts",
-    "src/**/*.spec.ts",
-    "src/**/*.d.ts",
-    "src/lib/storage-sync/tests/with-storage-sync-indexedb.spec.ts"
-  ]
+  "include": ["jest.config.ts", "**/*.test.ts", "**/*.spec.ts", "**/*.d.ts"]
 }
